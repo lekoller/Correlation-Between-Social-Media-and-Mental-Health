@@ -45,10 +45,11 @@ Measurements of Frequency or Intensity of mental health symptoms is take through
 
 # Importing necessary packages for the project
 import pandas as pd
-import numpy as np
 
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+from persistence.repository import GenericRepository
 
 # loading the dataset used in for the project
 data=pd.read_csv('smmh.csv')
@@ -315,6 +316,14 @@ for p in ax.patches:
     height = p.get_height()
     ax.text(p.get_x()+p.get_width()/2,height + 3,'{0:.0%}'.format(height/total),ha="center")
 
+
+
+# save data in trusted db inside mongodb
+trusted_repository = GenericRepository('trusted', 'smmh')
+
+trusted_repository.insert_many_documents(data.to_dict('records'))
+
+
 """Approximately 260 participants out of 473 are female, making up the majority in the sample. 'Others' make up approximately 1% of the sample size, which makes it impossible to make statistical inferences based on the "Other" category specifically."""
 
 # Let's understand the distribution of data for 473 participants based on "Outcome" -
@@ -381,6 +390,8 @@ def plot_platforms(axis: str):
 
     mean_scores = pd.Series()
 
+    repository = GenericRepository('refined', axis)
+
     for platform in platforms:
         # Filter DataFrame
         df_filtered = data[data['Platforms Used'].str.contains(platform)]
@@ -395,35 +406,61 @@ def plot_platforms(axis: str):
 
     mean_scores_reset.plot.bar(x='index', y=0, legend=False)
 
+
     plt.ylabel(f'Mean {axis} Score')
     plt.show()
 
+    # Reset the index and rename the column
+    mean_scores_reset = mean_scores.reset_index().rename(columns={0: 'score'})
+    repository.insert_many_documents(mean_scores_reset.to_dict('records'))
 
-# data.groupby('Time Spent')['ADHD Score'].mean().sort_values(ascending=True).plot.bar(ylabel='Mean ADHD Score')
+def save_data_grouped_by(data, name: str):
+
+    repository = GenericRepository('refined', f'{name} VS Time Spent')
+
+    mean_total_score = data.groupby('Time Spent')[name].mean().sort_values(ascending=True)
+    mean_total_score.plot.bar(ylabel=name)
+    mean_total_score_reset = mean_total_score.reset_index()
+
+    repository.insert_many_documents(mean_total_score_reset.to_dict('records'))
+
+
+data.groupby('Time Spent')['ADHD Score'].mean().sort_values(ascending=True).plot.bar(ylabel='Mean ADHD Score')
+
+save_data_grouped_by(data, 'ADHD Score')
 
 plot_platforms('ADHD Score')
 
 #Let's see the mean Anxiety score of each Time group of participants
 
-# data.groupby('Time Spent')['Anxiety Score'].mean().sort_values(ascending=True).plot.bar(ylabel='Mean Anxiety Score')
+data.groupby('Time Spent')['Anxiety Score'].mean().sort_values(ascending=True).plot.bar(ylabel='Mean Anxiety Score')
+
+save_data_grouped_by(data, 'Anxiety Score')
 
 plot_platforms('Anxiety Score')
 
 #Let's see the mean Self Esteem score of each Time group of participants
 
-# data.groupby('Time Spent')['Self Esteem Score'].mean().sort_values(ascending=True).plot.bar(ylabel='Mean Self Esteem Score')
+data.groupby('Time Spent')['Self Esteem Score'].mean().sort_values(ascending=True).plot.bar(ylabel='Mean Self Esteem Score')
+
+save_data_grouped_by(data, 'Self Esteem Score')
 
 plot_platforms('Self Esteem Score')
 
 #Let's see the mean Depression score of each Time group of participants
 
-# data.groupby('Time Spent')['Depression Score'].mean().sort_values(ascending=True).plot.bar(ylabel='Mean Depression Score')
+data.groupby('Time Spent')['Depression Score'].mean().sort_values(ascending=True).plot.bar(ylabel='Mean Depression Score')
+
+save_data_grouped_by(data, 'Depression Score')
 
 plot_platforms('Depression Score')
 
 #Let's see the mean Total score of each Time group of participants
 
-# data.groupby('Time Spent')['Total Score'].mean().sort_values(ascending=True).plot.bar(ylabel='Total Score')
+data.groupby('Time Spent')['Total Score'].mean().sort_values(ascending=True).plot.bar(ylabel='Total Score')
+
+save_data_grouped_by(data, 'Total Score')
+
 
 plot_platforms('Total Score')
 
